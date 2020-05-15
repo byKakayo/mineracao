@@ -18,7 +18,7 @@ crys_coord_transf_sec = ["CRYST1", "ORIGX1", "ORIGX2", "ORIGX3", "SCALE1", "SCAL
 coord_sec = ["ATOM", "HETATM"]
 
 #Abrindo arquivo pdb
-with open('5rgk.pdb', 'r') as f:
+with open('1cls.pdb', 'r') as f:
     #Percorrendo linha a linha
     for line in f:
         line = line[:-1]
@@ -31,6 +31,18 @@ with open('5rgk.pdb', 'r') as f:
                 HEADER['date'] = line[50:62].strip()
                 HEADER['ID'] = line[62:].strip()
                 pdb_file[tipo] = HEADER
+            elif tipo == "COMPND" or tipo == "SOURCE":
+                line = line.replace(';', "")
+                if tipo not in pdb_file:
+                    pdb_file[tipo] = {}
+                if ":" in line:
+                    txt = line[10:].split(":")
+                    key = txt[0].strip()
+                    txt = txt[1].strip().split(",")
+                    pdb_file[tipo][key] = txt
+                else:
+                    txt = line[10:].strip().split(",")
+                    pdb_file[tipo][key] += txt
             elif tipo == "AUTHOR":
                 list_author = []
                 AUTHOR = {}
@@ -90,12 +102,11 @@ with open('5rgk.pdb', 'r') as f:
         #Primary Structure Section
         if tipo in prim_sec:
             if tipo == "DBREF":
-                list_dbref = []
                 DBREF = {}
-                if tipo in pdb_file:
-                    list_dbref = pdb_file[tipo]
+                if tipo not in pdb_file:
+                    pdb_file[tipo] = {}
                 DBREF['idCode'] = line[7:11].strip()
-                DBREF['chainID'] = line[12].strip()
+                chainID = line[12].strip()
                 DBREF['seqBegin'] = line[14:18].strip()
                 DBREF['seqEnd'] = line[20:24].strip()
                 DBREF['database'] = line[26:32].strip()
@@ -103,19 +114,12 @@ with open('5rgk.pdb', 'r') as f:
                 DBREF['dbIdCode'] = line[42:54].strip()
                 DBREF['dbSeqBegin'] = line[55:60].strip()
                 DBREF['dbSeqEnd'] = line[62:67].strip()
-                list_dbref.append(DBREF)
-                pdb_file[tipo] = list_dbref
+                DBREF['listRes'] = []
+                pdb_file[tipo][chainID] = DBREF
             elif tipo == "SEQRES":
-                chain_ID = line[11].strip()
-                if tipo not in pdb_file:
-                    SEQRES = {}
-                    SEQRES[chain_ID] = line[19:].split()
-                else:
-                    if chain_ID not in pdb_file[tipo]:
-                        SEQRES[chain_ID] = line[19:].split()
-                    else:
-                        pdb_file[tipo][chain_ID] += line[19:].split()
-                pdb_file[tipo] = SEQRES
+                chainID = line[11].strip()
+                listRes = line[19:].split()
+                pdb_file['DBREF'][chainID]['listRes'] += listRes
         #Heterogen Section
         if tipo in het_sec:
             if tipo == "HET":
@@ -170,7 +174,7 @@ with open('5rgk.pdb', 'r') as f:
                 HELIX = {}
                 if tipo in pdb_file:
                     list_helix = pdb_file[tipo]
-                HELIX['serNum'] = line[7:10].strip()
+                HELIX['serNum'] = line[7:11].strip()
                 HELIX['helixID'] = line[11:14].strip()
                 HELIX['initResName'] = line[15:18].strip()
                 HELIX['initChainID'] = line[19].strip()
@@ -237,9 +241,10 @@ with open('5rgk.pdb', 'r') as f:
                 x = (flag - 1)*4
                 for i in range(x+1,numRes+1):
                     j = int(str(i-x)+'7') + (i-x)
-                    dic_res[('resName'+str(i))] = line[j:(j+3)].strip()
-                    dic_res[('chainID'+str(i))] = line[(j+4)].strip()
-                    dic_res[('seq'+str(i))] = line[(j+5):(j+9)].strip()
+                    dic_res[i] = {}
+                    dic_res[i]['resName'] = line[j:(j+3)].strip()
+                    dic_res[i]['chainID'] = line[(j+4)].strip()
+                    dic_res[i]['seq'] = line[(j+5):(j+9)].strip()
                 return dic_res
             flag = int(line[7:10].strip())
             siteID = line[11:14].strip()
@@ -247,12 +252,12 @@ with open('5rgk.pdb', 'r') as f:
             dic_res = {}
             if tipo not in pdb_file:
                 SITE = {}
-                numRes = 4
+                if numRes > 4: numRes = 4
                 dic_res = site_strip(flag)
                 SITE[siteID] = dic_res
             else:
                 if siteID not in pdb_file[tipo]:
-                    numRes = 4
+                    if numRes > 4: numRes = 4
                     dic_res = site_strip(flag)
                     SITE[siteID] = dic_res
                 else:
@@ -332,20 +337,3 @@ with open('5rgk.pdb', 'r') as f:
             MASTER['numSeq'] = line[65:].strip()
             pdb_file[tipo] = MASTER
 print(pdb_file)
-#PRINT ATOM E HETATM
-'''for keys, values in pdb_file.items():
-    print(keys)
-    sum = 0
-    for x, y in values.items():
-        print("resSeq: ", x)
-        sum += len(y)
-    print(sum, "\n\n")'''
-#PRINT SHEET
-'''for keys, values in pdb_file.items():
-    print(keys)
-    for x, y in values.items():
-        print(x)
-        for strand, split in y.items():
-            print(strand)
-            print(split)
-    print("\n\n")'''
