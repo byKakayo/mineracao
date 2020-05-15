@@ -1,4 +1,5 @@
 from math import ceil
+import pickle
 #Inicializando dicionario
 pdb_file = {}
 
@@ -18,7 +19,7 @@ crys_coord_transf_sec = ["CRYST1", "ORIGX1", "ORIGX2", "ORIGX3", "SCALE1", "SCAL
 coord_sec = ["ATOM", "HETATM"]
 
 #Abrindo arquivo pdb
-with open('1cls.pdb', 'r') as f:
+with open('5rgk.pdb', 'r') as f:
     #Percorrendo linha a linha
     for line in f:
         line = line[:-1]
@@ -33,30 +34,41 @@ with open('1cls.pdb', 'r') as f:
                 pdb_file[tipo] = HEADER
             elif tipo == "COMPND" or tipo == "SOURCE":
                 line = line.replace(';', "")
-                if tipo not in pdb_file:
-                    pdb_file[tipo] = {}
                 if ":" in line:
                     txt = line[10:].split(":")
                     key = txt[0].strip()
                     txt = txt[1].strip().split(",")
-                    pdb_file[tipo][key] = txt
+                    if 'MOLECULES' not in pdb_file:
+                        pdb_file['MOLECULES'] = {}
+                    if key == "MOL_ID":
+                        if txt[0] not in pdb_file['MOLECULES']:
+                            molID = txt[0]
+                            pdb_file['MOLECULES'][molID] = {}
+                        else:
+                            molID = txt[0]
+                    elif key in pdb_file['MOLECULES'][molID]:
+                        pdb_file['MOLECULES'][molID][key] += txt
+                    else:
+                        pdb_file['MOLECULES'][molID][key] = txt
                 else:
                     txt = line[10:].strip().split(",")
-                    pdb_file[tipo][key] += txt
+                    txt[0] = pdb_file['MOLECULES'][molID][key][-1] + txt[0]
+                    del pdb_file['MOLECULES'][molID][key][-1]
+                    pdb_file['MOLECULES'][molID][key] += txt
             elif tipo == "AUTHOR":
                 list_author = []
                 AUTHOR = {}
                 if tipo not in pdb_file:
-                    list_author = line[10:79].split(",")
+                    list_author = line[10:79].strip().split(",")
                 else:
                     list_author = pdb_file[tipo]
                     if list_author[-1] == "":
                         del list_author[-1]
-                        list_author += line[10:79].split(",")
+                        list_author += line[10:79].strip().split(",")
                     else:
-                        aux = line[10:79].split(",")
-                        list_author.append(list_author[-1] + aux[0])
-                        del aux[0]
+                        aux = line[10:79].strip().split(",")
+                        aux[0] = list_author[-1] + aux[0]
+                        del list_author[-1]
                         list_author += aux
                 pdb_file[tipo] = list_author
             elif tipo == "REVDAT":
@@ -336,4 +348,10 @@ with open('1cls.pdb', 'r') as f:
             MASTER['numConect'] = line[60:65].strip()
             MASTER['numSeq'] = line[65:].strip()
             pdb_file[tipo] = MASTER
+
 print(pdb_file)
+
+#Gravando dicionario em um arquivo de saída com o modulo pickle
+saida = open('saida.txt','wb')
+pickle.dump(pdb_file, saida)
+saida.close()
